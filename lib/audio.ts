@@ -1,0 +1,18 @@
+export type SoundKind='move'|'clear'|'celebrate';
+export async function playEffect(context:AudioContext,kind:SoundKind,stillEnabled:()=>boolean){
+ // resume must be invoked within the original click/touch call stack.
+ if(context.state!=='running')await context.resume();
+ if(context.state!=='running'||!stillEnabled())return;
+ const frequencies=kind==='celebrate'?[523.25,659.25,783.99]:[kind==='clear'?660:330];
+ frequencies.forEach((frequency,i)=>{
+  const oscillator=context.createOscillator(),gain=context.createGain();
+  oscillator.connect(gain);gain.connect(context.destination);
+  const start=context.currentTime+.01+i*.07,duration=kind==='celebrate'?.6:.2;
+  oscillator.type='sine';oscillator.frequency.setValueAtTime(frequency,start);
+  if(kind!=='celebrate')oscillator.frequency.exponentialRampToValueAtTime(kind==='clear'?1100:440,start+.14);
+  gain.gain.setValueAtTime(kind==='celebrate'?.035:.07,start);
+  gain.gain.exponentialRampToValueAtTime(.001,start+duration);
+  oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
+  oscillator.start(start);oscillator.stop(start+duration);
+ });
+}
