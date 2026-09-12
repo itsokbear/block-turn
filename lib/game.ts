@@ -33,7 +33,7 @@ export function place(g:Game,index:number,row:number,col:number): {game:Game; cl
  const lines=rows.length+cols.length;const combo=lines?g.combo+1:0;const points=count*10+lines*100*Math.max(1,combo);
  const allClear=cleared.length>0&&board.every(r=>r.every(v=>v===0));
  const pieces=g.pieces.map((p,i)=>i===index?null:p);
- return {game:{board,pieces:pieces.every(p=>p===null)?deal(board):pieces,score:g.score+points,lines:g.lines+lines,combo,bombs:allClear?1:Math.min(1,g.bombs+(combo>0&&combo%3===0?1:0)),goldenBomb:allClear||g.goldenBomb,rerolls:canEarnReroll(lines)?1:g.rerolls},cleared,points,allClear,rowsCleared:rows,colsCleared:cols};
+ return {game:{board,pieces:pieces.every(p=>p===null)?deal(board):pieces,score:g.score+points,lines:g.lines+lines,combo,bombs:allClear?1:Math.min(1,g.bombs+(combo>0&&combo%BOMB_COMBO_THRESHOLD===0?1:0)),goldenBomb:allClear||g.goldenBomb,rerolls:canEarnReroll(lines)?1:g.rerolls},cleared,points,allClear,rowsCleared:rows,colsCleared:cols};
 }
 export function validSave(v:unknown):v is Game {const g=v as Game;return !!g&&Array.isArray(g.board)&&g.board.length===8&&g.board.every(r=>Array.isArray(r)&&r.length===8&&r.every(n=>Number.isInteger(n)&&n>=0&&n<=5))&&Array.isArray(g.pieces)&&g.pieces.length===3&&g.pieces.some(Boolean)&&g.pieces.every(p=>p===null||(Number.isInteger(p.color)&&p.color>=1&&p.color<=5&&Array.isArray(p.shape)&&p.shape.length>0&&p.shape.length<=4&&p.shape.every(r=>Array.isArray(r)&&r.length===p.shape[0].length&&r.length>0&&r.length<=4&&r.every(v=>v===0||v===1))&&p.shape.some(r=>r.some(Boolean))))&&(g.rerolls===0||g.rerolls===1)&&typeof g.goldenBomb==='boolean'&&(!g.goldenBomb||g.bombs===1)&&(g.bombs===0||g.bombs===1)&&[g.score,g.lines,g.combo,g.bombs].every(n=>Number.isSafeInteger(n)&&n>=0);}
 
@@ -65,7 +65,8 @@ export function previewLines(board:number[][],shape:Shape,row:number,col:number)
  return Array.from({length:64},(_,i)=>i).filter(i=>rows[Math.floor(i/8)]||cols[i%8]);
 }
 
-export const REROLL_LINES_THRESHOLD=2;
+export const REROLL_LINES_THRESHOLD=3;
+export const BOMB_COMBO_THRESHOLD=4;
 export function canEarnReroll(lines:number){return lines>=REROLL_LINES_THRESHOLD;}
 export function shapeClass(shape:Shape){const keys:string[]=[];for(let i=0;i<4;i++,shape=rotate(shape))keys.push(JSON.stringify(shape));return keys.sort()[0];}
 export function playableShapes(board:number[][]){return SHAPES.filter(shape=>canFitShape(board,shape));}
