@@ -49,7 +49,7 @@ export function detonate(g:Game,row:number,col:number){
  const board=g.board.map(r=>[...r]);let count=0;
  for(const cell of area){const y=Math.floor(cell/8),x=cell%8;if(board[y][x])count++;board[y][x]=0;}
  const allClear=count>0&&board.every(r=>r.every(v=>v===0));
- return {game:{...g,board,bombs:0,goldenBomb:false,rerolls:0,score:g.score+count*10},cleared:area,points:count*10,allClear,rowsCleared:[] as number[],colsCleared:[] as number[]};
+ return {game:{...g,board,bombs:0,goldenBomb:false,score:g.score+count*10},cleared:area,points:count*10,allClear,rowsCleared:[] as number[],colsCleared:[] as number[]};
 }
 export function restoreSave(value:unknown):Game|null {
  if(!value||typeof value!=='object')return null;
@@ -78,3 +78,12 @@ export function rerollPiece(g:Game,index:number,random:()=>number=Math.random):G
 }
 
 export function bombIsLastResort(g:Game){return g.bombs>0&&g.rerolls===0&&!g.pieces.some(p=>p&&canFitShape(g.board,p.shape));}
+
+// Evaluate the resulting board after line clears and rewards, without drawing a new hand.
+export function placementRisk(g:Game,index:number,row:number,col:number):'red'|'amber'|null{
+ if(g.pieces.filter(Boolean).length<=1)return null;
+ const result=place(g,index,row,col);if(!result)return null;
+ const next=result.game;
+ if(next.pieces.some(p=>p&&canFitShape(next.board,p.shape)))return null;
+ return next.bombs>0||next.rerolls>0?'amber':'red';
+}
