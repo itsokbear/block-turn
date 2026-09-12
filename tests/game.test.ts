@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fresh,rotate,fits,canPlay,place,validSave,restoreSave,detonate,bombArea,previewLines,SHAPES,shapeWeight,chooseShape } from '../lib/game.ts';
+import { fresh,rotate,fits,canPlay,place,validSave,restoreSave,detonate,bombArea,previewLines,SHAPES,shapeWeight,chooseShape,isZigzag,deal,canFitShape } from '../lib/game.ts';
 test('four rotations restore asymmetric piece',()=>{const s=[[1,0],[1,0],[1,1]];assert.deepEqual(rotate(rotate(rotate(rotate(s)))),s);assert.deepEqual(rotate(s),[[1,1,1],[1,0,0]]);});
 test('reject overlap and bounds without mutation',()=>{const g=fresh();g.pieces=[{shape:[[1,1]],color:2},null,null];g.board[0][0]=1;const before=JSON.stringify(g);assert.equal(place(g,0,0,0),null);assert.equal(place(g,0,0,7),null);assert.equal(place(g,0,-1,0),null);assert.equal(JSON.stringify(g),before);});
 test('clear intersecting row and column simultaneously',()=>{const g=fresh();g.pieces=[{shape:[[1]],color:2},null,null];g.board[0]=Array(8).fill(1);g.board.forEach(r=>r[0]=1);g.board[0][0]=0;const r=place(g,0,0,0)!;assert.equal(r.cleared.length,15);assert.equal(r.game.lines,2);assert.equal(r.game.score,210);assert.ok(r.game.board.every(row=>row.every(n=>n===0)));assert.equal(r.game.pieces.filter(Boolean).length,3);assert.equal(g.board[0][0],0);});
@@ -46,7 +46,7 @@ test('weighted draw gives exact requested probability for every shape',()=>{
  const counts=new Map(SHAPES.map(shape=>[shape,0]));
  const total=SHAPES.reduce((sum,shape)=>sum+shapeWeight(shape),0);
  for(let ticket=0;ticket<total;ticket++){const shape=chooseShape((ticket+.5)/total);counts.set(shape,counts.get(shape)!+1);}
- for(const shape of SHAPES){const cells=shape.flat().reduce((sum,v)=>sum+v,0);assert.equal(counts.get(shape),cells===1?7:cells===2?10:cells===3?14:70);}
+ for(const shape of SHAPES){const cells=shape.flat().reduce((sum,v)=>sum+v,0);assert.equal(counts.get(shape),cells===1?7:cells===2?10:cells===3?14:isZigzag(shape)?35:70);}
 });
 test('weighted draw covers endpoint intervals and rejects invalid random values',()=>{assert.equal(chooseShape(0),SHAPES[0]);assert.equal(chooseShape(1-Number.EPSILON),SHAPES.at(-1));for(const value of [-1,1,NaN,Infinity])assert.throws(()=>chooseShape(value),RangeError);});
 
@@ -56,3 +56,8 @@ test('every reflected shape is available, without rotational duplicates',()=>{
  assert.equal(available.size,SHAPES.length);
  for(const shape of SHAPES){const mirror=shape.map(row=>[...row].reverse());assert.ok(available.has(key(mirror)),`Missing mirror for ${JSON.stringify(shape)}`);}
 });
+
+test('zigzags and their rotations have half the ordinary weight',()=>{for(const shape of [[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]]){assert.equal(shapeWeight(shape),35);assert.equal(shapeWeight(rotate(shape)),35);}assert.equal(shapeWeight([[1,0],[1,0],[1,1]]),70);});
+test('new deal guarantees a move in a single empty cell even with a bomb available',()=>{const board=Array.from({length:8},()=>Array(8).fill(1));board[7][0]=0;const before=JSON.stringify(board);const pieces=deal(board,()=>.99);assert.equal(pieces.length,3);assert.ok(pieces.some(p=>canFitShape(board,p.shape)));assert.equal(JSON.stringify(board),before);});
+test('playable random deal is preserved and a completely full board terminates',()=>{const empty=fresh().board;assert.deepEqual(deal(empty,()=>.5),deal(undefined,()=>.5));const full=empty.map(r=>r.map(()=>1));assert.equal(deal(full,()=>.99).length,3);});
+test('refill after final placement uses the resulting board',()=>{const g=fresh();g.board=g.board.map((r,y)=>r.map((_,x)=>(x+y)%2?1:0));g.pieces=[null,null,{shape:[[1]],color:1}];const result=place(g,2,0,0)!;assert.ok(result.game.pieces.some(p=>p&&canFitShape(result.game.board,p.shape)));});

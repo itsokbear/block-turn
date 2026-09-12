@@ -3,18 +3,28 @@ export type Piece = { shape: Shape; color: number };
 export type Game = { board: number[][]; pieces: (Piece | null)[]; score: number; lines: number; combo: number; bombs: number; goldenBomb: boolean };
 export const SHAPES: Shape[] = [[[1]],[[1,1]],[[1,1,1]],[[1,0],[1,1]],[[1,1,1],[1,1,1],[1,1,1]],[[1,1,1,1]],[[1,1],[1,1]],[[1,0],[1,0],[1,1]],[[0,1],[0,1],[1,1]],[[1,1,1],[0,1,0]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]],[[1,1,1],[1,1,1]],[[1,1,1],[1,0,0],[1,0,0]]];
 export function rotate(s: Shape): Shape { return s[0].map((_,c)=>s.map(row=>row[c]).reverse()); }
+export function isZigzag(shape:Shape):boolean {let s=shape;for(let i=0;i<4;i++,s=rotate(s)){const key=JSON.stringify(s);if(key==='[[1,1,0],[0,1,1]]'||key==='[[0,1,1],[1,1,0]]')return true;}return false;}
 // Integer weights preserve the exact 1/5, 1/7 and 1/10 ratios.
-export function shapeWeight(shape:Shape):number {const cells=shape.flat().reduce((sum,v)=>sum+v,0);return cells===1?7:cells===2?10:cells===3?14:70;}
-export function chooseShape(random=Math.random()):Shape {
+export function shapeWeight(shape:Shape):number {const cells=shape.flat().reduce((sum,v)=>sum+v,0);return cells===1?7:cells===2?10:cells===3?14:isZigzag(shape)?35:70;}
+export function chooseShape(random=Math.random(),pool:Shape[]=SHAPES):Shape {
  if(!Number.isFinite(random)||random<0||random>=1)throw new RangeError('Random value must be in [0, 1)');
- const total=SHAPES.reduce((sum,shape)=>sum+shapeWeight(shape),0);let ticket=random*total;
- for(const shape of SHAPES){ticket-=shapeWeight(shape);if(ticket<0)return shape;}
- return SHAPES[SHAPES.length-1];
+ if(!pool.length)throw new RangeError('Empty shape pool');
+ const total=pool.reduce((sum,shape)=>sum+shapeWeight(shape),0);let ticket=random*total;
+ for(const shape of pool){ticket-=shapeWeight(shape);if(ticket<0)return shape;}
+ return pool[pool.length-1];
 }
-export function deal(): Piece[] { return Array.from({length:3},()=>({shape:chooseShape().map(r=>[...r]),color:1+Math.floor(Math.random()*5)})); }
+export function canFitShape(board:number[][],shape:Shape):boolean {let s=shape;for(let n=0;n<4;n++,s=rotate(s))for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(fits(board,s,r,c))return true;return false;}
+export function deal(board?:number[][],random:()=>number=Math.random):Piece[]{
+ const pieces=Array.from({length:3},()=>({shape:chooseShape(random()).map(r=>[...r]),color:1+Math.floor(random()*5)}));
+ if(board&&!pieces.some(p=>canFitShape(board,p.shape))){
+  const playable=SHAPES.filter(shape=>canFitShape(board,shape));
+  if(playable.length){const slot=Math.floor(random()*pieces.length);pieces[slot]={...pieces[slot],shape:chooseShape(random(),playable).map(r=>[...r])};}
+ }
+ return pieces;
+}
 export function fresh(): Game { return {board:Array.from({length:8},()=>Array(8).fill(0)),pieces:deal(),score:0,lines:0,combo:0,bombs:0,goldenBomb:false}; }
 export function fits(board:number[][],shape:Shape,row:number,col:number) { return Number.isInteger(row)&&Number.isInteger(col)&&shape.every((r,y)=>r.every((v,x)=>!v||(row+y>=0&&row+y<8&&col+x>=0&&col+x<8&&board[row+y][col+x]===0))); }
-export function canPlay(g:Game) { return g.bombs>0||g.pieces.some(p=>{if(!p)return false; let s=p.shape; for(let n=0;n<4;n++,s=rotate(s))for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(fits(g.board,s,r,c))return true;return false;}); }
+export function canPlay(g:Game) {return g.bombs>0||g.pieces.some(p=>p&&canFitShape(g.board,p.shape));}
 export function place(g:Game,index:number,row:number,col:number): {game:Game; cleared:number[]; points:number; allClear:boolean}|null {
  const p=g.pieces[index];if(!p||!fits(g.board,p.shape,row,col))return null;
  const board=g.board.map(r=>[...r]);let count=0;p.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v){board[row+y][col+x]=p.color;count++;}}));
@@ -23,7 +33,7 @@ export function place(g:Game,index:number,row:number,col:number): {game:Game; cl
  const lines=rows.length+cols.length;const combo=lines?g.combo+1:0;const points=count*10+lines*100*Math.max(1,combo);
  const allClear=cleared.length>0&&board.every(r=>r.every(v=>v===0));
  const pieces=g.pieces.map((p,i)=>i===index?null:p);
- return {game:{board,pieces:pieces.every(p=>p===null)?deal():pieces,score:g.score+points,lines:g.lines+lines,combo,bombs:allClear?1:Math.min(1,g.bombs+(combo>0&&combo%3===0?1:0)),goldenBomb:allClear||g.goldenBomb},cleared,points,allClear};
+ return {game:{board,pieces:pieces.every(p=>p===null)?deal(board):pieces,score:g.score+points,lines:g.lines+lines,combo,bombs:allClear?1:Math.min(1,g.bombs+(combo>0&&combo%3===0?1:0)),goldenBomb:allClear||g.goldenBomb},cleared,points,allClear};
 }
 export function validSave(v:unknown):v is Game {const g=v as Game;return !!g&&Array.isArray(g.board)&&g.board.length===8&&g.board.every(r=>Array.isArray(r)&&r.length===8&&r.every(n=>Number.isInteger(n)&&n>=0&&n<=5))&&Array.isArray(g.pieces)&&g.pieces.length===3&&g.pieces.some(Boolean)&&g.pieces.every(p=>p===null||(Number.isInteger(p.color)&&p.color>=1&&p.color<=5&&Array.isArray(p.shape)&&p.shape.length>0&&p.shape.length<=4&&p.shape.every(r=>Array.isArray(r)&&r.length===p.shape[0].length&&r.length>0&&r.length<=4&&r.every(v=>v===0||v===1))&&p.shape.some(r=>r.some(Boolean))))&&typeof g.goldenBomb==='boolean'&&(!g.goldenBomb||g.bombs===1)&&(g.bombs===0||g.bombs===1)&&[g.score,g.lines,g.combo,g.bombs].every(n=>Number.isSafeInteger(n)&&n>=0);}
 

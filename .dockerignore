@@ -8,3 +8,8 @@ dist
 releases
 
 .deploy
+
+output
+.next
+.openai
+.env*
