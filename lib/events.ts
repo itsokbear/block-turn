@@ -1,6 +1,6 @@
 import type {Game} from './game';
 export type MoveEventKind='beautiful'|'bullseye'|'brilliant'|'masterful'|'genius'|'perfect'|null;
-export const MOVE_EVENT_COPY={beautiful:'КРАСИВО!',bullseye:'В ТОЧКУ!',brilliant:'БЛЕСТЯЩЕ!',masterful:'МАСТЕРСКИ!',genius:'ГЕНИАЛЬНО!',perfect:'БЕЗУПРЕЧНО!'} as const;
+export const MOVE_EVENT_COPY={beautiful:'ОТЛИЧНО!',bullseye:'В ТОЧКУ!',brilliant:'БЛЕСТЯЩЕ!',masterful:'МАСТЕРСКИ!',genius:'ГЕНИАЛЬНО!',perfect:'БЕЗУПРЕЧНО!'} as const;
 export function classifyMoveEvent(rows:number,cols:number,perfect=false):MoveEventKind{
  const total=rows+cols;
  return perfect?'perfect':total>=5?'genius':total===4?'masterful':total===3?'brilliant':total===2?(rows&&cols?'bullseye':'beautiful'):null;
