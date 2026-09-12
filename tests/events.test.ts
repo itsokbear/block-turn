@@ -1,9 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {fresh} from '../lib/game.ts';
-import {classifyMove,moveEvent} from '../lib/events.ts';
-for(const [r,c,kind] of [[1,0,'normal'],[2,0,'double'],[0,2,'double'],[1,1,'cross'],[2,1,'triple'],[2,2,'quad'],[3,3,'mega']] as const)test(`classify ${r} rows ${c} cols`,()=>{assert.equal(classifyMove(r,c),kind);assert.equal(classifyMove(r,c,true),'perfect');});
-for(const [rows,cols,kind] of [[[0,1],[],'double'],[[0],[1],'cross'],[[0,1],[2],'triple'],[[0],[1],'perfect']] as const)test(`combined rewards ${kind}`,()=>{const g=fresh();const perfect=kind==='perfect',bomb=kind==='triple'||perfect;const e=moveEvent(g,{...g,lines:rows.length+cols.length,rerolls:1,bombs:bomb?1:0,goldenBomb:perfect},perfect,true,[...rows],[...cols])!;assert.equal(e.classification,kind);assert.equal(e.reroll,true);assert.equal(e.bomb,bomb);assert.match(e.details,/Реролл готов/);if(bomb)assert.match(e.details,/бомба готова|Бомба готова/);});
-test('no five-combo milestones or bomb placement rewards',()=>{const g=fresh();assert.equal(moveEvent(g,{...g,combo:5},false,true),null);assert.equal(moveEvent(g,{...g,rerolls:1},true,false),null);});
-test('stored reroll still celebrates double without duplicate award',()=>{const g={...fresh(),rerolls:1};const e=moveEvent(g,{...g,lines:2},false,true,[1,2],[])!;assert.equal(e.reroll,false);assert.equal(e.title,'ДВОЙНАЯ!');});
-test('perfect clear keeps golden reward caption when resources already full',()=>{const g={...fresh(),bombs:1,goldenBomb:true,rerolls:1};const e=moveEvent(g,{...g,lines:2},true,true,[0],[0])!;assert.equal(e.rewards,'Золотая бомба готова');assert.equal(e.bomb,false);assert.equal(e.reroll,false);});
+import {fresh,detonate} from '../lib/game.ts';
+import {classifyMoveEvent,moveEvent,MOVE_EVENT_COPY} from '../lib/events.ts';
+for(const [r,c,kind] of [[1,0,null],[2,0,'beautiful'],[0,2,'beautiful'],[1,1,'bullseye'],[2,1,'brilliant'],[2,2,'masterful'],[3,2,'genius'],[3,3,'genius']] as const)test(`classify ${r}+${c}`,()=>{assert.equal(classifyMoveEvent(r,c),kind);assert.equal(classifyMoveEvent(r,c,true),'perfect');});
+test('fixed copy',()=>assert.deepEqual(Object.values(MOVE_EVENT_COPY),['КРАСИВО!','В ТОЧКУ!','БЛЕСТЯЩЕ!','МАСТЕРСКИ!','ГЕНИАЛЬНО!','БЕЗУПРЕЧНО!']));
+test('reroll is only announced when newly earned',()=>{const g=fresh();const e=moveEvent(g,{...g,rerolls:1},false,true,[0,1],[])!;assert.equal(e.rerollEarned,true);assert.equal(e.details,'2 линии · Реролл получен');const n=moveEvent({...g,rerolls:1},{...g,rerolls:1},false,true,[0,1],[])!;assert.equal(n.rerollEarned,false);assert.equal(n.details,'2 линии');});
+test('one combined perfect clear event takes precedence over five lines',()=>{const g=fresh();const e=moveEvent(g,{...g,bombs:1,goldenBomb:true,rerolls:1},true,true,[0,1,2],[0,1])!;assert.equal(e.kind,'perfect');assert.equal(e.title,'БЕЗУПРЕЧНО!');assert.equal(e.details,'Золотая бомба · Реролл получен');});
+test('bomb clear produces no classification or reroll',()=>{const g={...fresh(),bombs:1};g.board[0][0]=1;const r=detonate(g,0,0)!;assert.equal(r.game.rerolls,0);assert.equal(moveEvent(g,r.game,r.allClear,false),null);});
+test('single line bomb reward has no competing title',()=>{const g=fresh();assert.equal(moveEvent(g,{...g,bombs:1},false,true,[0],[])!.title,'');});

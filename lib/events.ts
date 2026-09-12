@@ -1,17 +1,18 @@
 import type {Game} from './game';
-export function classifyMove(rows:number,cols:number,allClear=false){
+export type MoveEventKind='beautiful'|'bullseye'|'brilliant'|'masterful'|'genius'|'perfect'|null;
+export const MOVE_EVENT_COPY={beautiful:'КРАСИВО!',bullseye:'В ТОЧКУ!',brilliant:'БЛЕСТЯЩЕ!',masterful:'МАСТЕРСКИ!',genius:'ГЕНИАЛЬНО!',perfect:'БЕЗУПРЕЧНО!'} as const;
+export function classifyMoveEvent(rows:number,cols:number,perfect=false):MoveEventKind{
  const total=rows+cols;
- return allClear?'perfect':total>=5?'mega':total===4?'quad':total===3?'triple':total===2?(rows&&cols?'cross':'double'):'normal';
+ return perfect?'perfect':total>=5?'genius':total===4?'masterful':total===3?'brilliant':total===2?(rows&&cols?'bullseye':'beautiful'):null;
 }
 export function moveEvent(before:Game,after:Game,allClear:boolean,placement:boolean,rowsCleared:number[]=[],colsCleared:number[]=[]){
  if(!placement)return null;
  const bomb=after.bombs>before.bombs||(!before.goldenBomb&&after.goldenBomb),reroll=after.rerolls>before.rerolls;
- const totalLines=after.lines-before.lines;
- const classification=classifyMove(rowsCleared.length,colsCleared.length,allClear);
- if(classification==='normal'&&!bomb&&!reroll)return null;
- const titles={perfect:'ЧИСТАЯ РАБОТА!',mega:'МОЩНЫЙ ХОД!',quad:'ЧЕТВЕРНАЯ!',triple:'ТРОЙНАЯ!',cross:'КРЕСТ!',double:'ДВОЙНАЯ!',normal:bomb?'БОМБА ЗАРЯЖЕНА!':'РЕРОЛЛ ГОТОВ'};
- const tier=allClear||classification==='mega'||(bomb&&after.goldenBomb)?3:totalLines>=3||bomb?2:1;
- const rewards=[allClear?'Золотая бомба готова':bomb?(after.goldenBomb?'Золотая бомба готова':'Бомба готова'):null,reroll?'Реролл готов':null].filter(Boolean).join(' · ');
- const details=[totalLines>=2?`${totalLines} ${totalLines<=4?'линии':'линий'}`:null,classification==='triple'&&rowsCleared.length&&colsCleared.length?'крестом':null,rewards||null].filter(Boolean).join(' · ');
- return {bomb,reroll,classification,totalLines,rowsCleared,colsCleared,tier,duration:tier===3?1200:tier===2?1000:750,kind:totalLines>=2?'lines':'bomb',title:titles[classification],details,rewards};
+ const totalLines=rowsCleared.length+colsCleared.length,classification=classifyMoveEvent(rowsCleared.length,colsCleared.length,allClear);
+ if(!classification&&!bomb&&!reroll)return null;
+ const tier=classification==='perfect'||classification==='genius'?3:classification==='masterful'||classification==='brilliant'?2:1;
+ const rewards=[bomb?'Бомба готова':null,reroll?'Реролл получен':null].filter(Boolean).join(' · ');
+ const details=classification==='perfect'?(bomb?(reroll?'Золотая бомба · Реролл получен':'Золотая бомба получена'):reroll?'Поле очищено · Реролл получен':'Поле очищено'):[classification==='bullseye'?'Строка + столбец':totalLines>=2?`${totalLines} ${totalLines<=4?'линии':'линий'}`:null,rewards||null].filter(Boolean).join(' · ');
+ const duration=classification==='beautiful'?650:classification==='bullseye'?800:classification==='brilliant'?900:classification==='masterful'?1000:classification==='genius'?1100:1200;
+ return {bomb,reroll,bombEarned:bomb,rerollEarned:reroll,classification,totalLines,rowsCleared,colsCleared,tier,duration,kind:classification??'reward',title:classification?MOVE_EVENT_COPY[classification]:'',details,rewards};
 }
