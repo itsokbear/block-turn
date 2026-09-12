@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
+import {monitorUpdates} from '../lib/pwa-updates';
 export default function PwaStatus(){
  const [status,setStatus]=useState('');const [waiting,setWaiting]=useState<ServiceWorker|null>(null);const updating=useRef(false);
  useEffect(()=>{
@@ -12,9 +13,7 @@ export default function PwaStatus(){
   report('Сохраняем игру для офлайн-режима…');
   navigator.serviceWorker.register(new URL('sw.js',new URL(document.querySelector<HTMLLinkElement>('link[rel=manifest]')?.href||'manifest.webmanifest',location.href)).href,{updateViaCache:'none'}).then(reg=>{
    if(disposed)return;
-   if(reg.waiting)setWaiting(reg.waiting);
-   const watch=()=>{const worker=reg.installing;if(!worker)return;const change=()=>{if(disposed)return;if(worker.state==='installed'&&reg.active&&reg.waiting)setWaiting(reg.waiting);if(worker.state==='redundant'&&!reg.active)report('Не удалось сохранить игру. Обнови страницу при подключении к сети.');};worker.addEventListener('statechange',change);cleanups.push(()=>worker.removeEventListener('statechange',change));};
-   reg.addEventListener('updatefound',watch);cleanups.push(()=>reg.removeEventListener('updatefound',watch));watch();
+   cleanups.push(monitorUpdates(reg,worker=>{if(!disposed)setWaiting(worker);}));
    navigator.serviceWorker.ready.then(()=>report('Готово к игре без интернета'));
   }).catch(()=>report('Офлайн-режим не сохранён. Обнови страницу при подключении к сети.'));
   return()=>{disposed=true;cleanups.forEach(fn=>fn());navigator.serviceWorker.removeEventListener('controllerchange',controllerChange);};
