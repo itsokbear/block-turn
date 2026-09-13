@@ -13,15 +13,16 @@ export function canPlaySerpent(g:Game){return canPlay({...g,board:occupied(g)});
 export function rerollSerpent(g:Game,index:number,random:()=>number=Math.random){const result=rerollPiece({...g,board:occupied(g)},index,random);return result?{...result,board:g.board}:null;}
 function clear(g:Game){
  const filled=occupied(g),rows=filled.flatMap((r,i)=>r.every(Boolean)?[i]:[]),cols=Array.from({length:8},(_,i)=>i).filter(i=>filled.every(r=>r[i]));
- const cells:number[]=[];g.board.forEach((r,y)=>r.forEach((v,x)=>{if(rows.includes(y)||cols.includes(x)){cells.push(y*8+x);g.board[y][x]=0;}}));
+ let shellCleared=false;
+ const cells:number[]=[];g.board.forEach((r,y)=>r.forEach((v,x)=>{if(rows.includes(y)||cols.includes(x)){if(v===POOP)shellCleared=true;cells.push(y*8+x);g.board[y][x]=0;}}));
  const head=g.serpent!.cells[0],hit=rows.includes(head>>3)||cols.includes(head%8);
- return {rows,cols,cells,hit};
+ return {rows,cols,cells,hit,shellCleared};
 }
 export function placeSerpent(g:Game,index:number,row:number,col:number,random:()=>number=Math.random){
  const p=g.pieces[index],snake=g.serpent;if(!snake||!p||!fits(occupied(g),p.shape,row,col))return null;
  const next:Game={...g,board:g.board.map(r=>[...r]),pieces:g.pieces.map((p,i)=>i===index?null:p),serpent:{...snake,cells:[...snake.cells]}};
  let count=0;p.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v){next.board[row+y][col+x]=p.color;count++;}}));
- const a=clear(next);let b={rows:[] as number[],cols:[] as number[],cells:[] as number[],hit:false};let eaten:number|null=null,poop:number|null=null;
+ const a=clear(next);let b={rows:[] as number[],cols:[] as number[],cells:[] as number[],hit:false,shellCleared:false};let eaten:number|null=null,poop:number|null=null;
  if(snake.stun)next.serpent!.stun=false;
  else if(snake.next!==null){
   const target=snake.next,tail=snake.cells[5];
@@ -32,10 +33,14 @@ export function placeSerpent(g:Game,index:number,row:number,col:number,random:()
   b=clear(next);
  }
  const playerLines=a.rows.length+a.cols.length,total=playerLines+b.rows.length+b.cols.length;
- // Only player clear advances combo/earns resources; movement clears award base line points.
+ // Player clears earn standard rewards; either phase can earn one shell reward.
  next.combo=playerLines?g.combo+1:0;next.lines+=total;
  next.rerolls=canEarnReroll(playerLines)?1:g.rerolls;
  next.bombs=Math.min(1,g.bombs+(next.combo>0&&next.combo%BOMB_COMBO_THRESHOLD===0?1:0));
+ if(a.shellCleared||b.shellCleared){
+  const available=(['bombs','rerolls'] as const).filter(key=>next[key]===0);
+  if(available.length)next[available[available.length===1?0:Math.floor(random()*available.length)]]=1;
+ }
  const points=count*10+playerLines*100*Math.max(1,next.combo)+(b.rows.length+b.cols.length)*100;next.score+=points;
  if(!snake.stun)next.serpent!.next=nextStep(next.serpent!.cells,random);
  if(next.pieces.every(p=>p===null))next.pieces=deal(occupied(next),random);

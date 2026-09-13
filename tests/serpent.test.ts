@@ -25,3 +25,41 @@ import {serpentRisk} from '../lib/serpent.ts';
 function riskBoard(){const g=setup();g.board=g.board.map((r,y)=>r.map((_,x)=>g.serpent!.cells.includes(y*8+x)?0:(x+y)%2?1:0));g.pieces=[{shape:[[1]],color:1},{shape:[[1,1,1],[1,1,1],[1,1,1]],color:2},null];return g;}
 test('serpent warns red or amber after full turn without modifying state',()=>{const g=riskBoard(),before=JSON.stringify(g);assert.equal(serpentRisk(g,0,0,0),'red');assert.equal(serpentRisk({...g,bombs:1},0,0,0),'amber');assert.equal(serpentRisk({...g,rerolls:1},0,0,0),'amber');assert.equal(JSON.stringify(g),before);assert.equal(serpentRisk(g,0,3,6),null);g.pieces[1]=null;assert.equal(serpentRisk(g,0,0,0),null);});
 test('warning accounts for tail freed by movement and for stun',()=>{const g=riskBoard();g.board=g.board.map((r,y)=>r.map((_,x)=>g.serpent!.cells.includes(y*8+x)?0:(x+y)%2?1:0));g.board[2][6]=0;g.board[2][1]=0;g.board[4][1]=0;g.board[2][0]=1;g.board[2][2]=1;g.board[4][0]=1;g.board[4][2]=1;g.pieces[1]={shape:[[1],[1],[1]],color:2};assert.equal(serpentRisk(g,0,0,0),null);g.serpent!.stun=true;assert.equal(serpentRisk(g,0,0,0),'red');});
+
+function shellLine(){const g=setup();g.board[0]=[0,POOP,POOP,1,1,1,1,1];return g;}
+for(const choice of [0,0.999])test(`shell line fills one random empty bonus (${choice})`,()=>{
+ const g=shellLine(),before=JSON.stringify(g);const r=placeSerpent(g,0,0,0,()=>choice)!.game;
+ assert.equal(r.bombs,choice===0?1:0);assert.equal(r.rerolls,choice===0?0:1);assert.equal(r.goldenBomb,false);
+ assert.equal(r.score,110);assert.equal(r.combo,1);assert.equal(JSON.stringify(g),before);
+});
+for(const bombs of [0,1])for(const rerolls of [0,1])test(`shell reward respects occupied slots (${bombs}, ${rerolls})`,()=>{
+ const g=shellLine();g.bombs=bombs;g.rerolls=rerolls;g.goldenBomb=bombs===1;
+ const r=placeSerpent(g,0,0,0,()=>0.999)!.game;
+ assert.equal(r.bombs+r.rerolls,Math.min(2,bombs+rerolls+1));
+ assert.ok(r.bombs>=bombs&&r.rerolls>=rerolls);assert.equal(r.goldenBomb,g.goldenBomb);
+});
+test('shell reward fills reroll after earning combo bomb',()=>{
+ const g=shellLine();g.combo=3;const r=placeSerpent(g,0,0,0,()=>0)!.game;
+ assert.equal(r.combo,4);assert.equal(r.bombs,1);assert.equal(r.rerolls,1);
+});
+test('shell reward fills bomb after earning three-line reroll',()=>{
+ const g=shellLine();g.board[1]=[0,1,1,1,1,1,1,1];g.board[2]=[0,1,1,1,1,1,1,1];g.pieces[0]!.shape=[[1],[1],[1]];
+ const r=placeSerpent(g,0,0,0,()=>0.999)!.game;
+ assert.equal(r.lines,3);assert.equal(r.bombs,1);assert.equal(r.rerolls,1);
+});
+test('movement shell clear earns reward without advancing combo',()=>{
+ const g=setup();g.board[2]=[POOP,1,1,1,1,1,0,1];const r=placeSerpent(g,0,7,7,()=>0)!.game;
+ assert.equal(r.lines,1);assert.equal(r.combo,0);assert.equal(r.score,110);assert.equal(r.bombs,1);
+});
+test('shell clears in both phases still earn only one reward',()=>{
+ const g=shellLine();g.board[2]=[POOP,1,1,1,1,1,0,1];const r=placeSerpent(g,0,0,0,()=>0)!.game;
+ assert.equal(r.lines,2);assert.equal(r.bombs+r.rerolls,1);
+});
+test('ordinary line, eating shell and bombing shell do not earn shell rewards',()=>{
+ const ordinary=shellLine();ordinary.board[0]=[0,1,1,1,1,1,1,1];ordinary.board[7][0]=POOP;
+ const eating=setup();eating.board[2][6]=POOP;
+ const bombing=setup();bombing.bombs=1;bombing.board[0][0]=POOP;
+ for(const r of [placeSerpent(ordinary,0,0,0)!,placeSerpent(eating,0,0,0)!,bombSerpent(bombing,0,0)!]){
+  assert.equal(r.game.bombs,0);assert.equal(r.game.rerolls,0);
+ }
+});
