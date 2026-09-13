@@ -8,8 +8,8 @@ export function nextStep(cells:number[],random:()=>number=Math.random):number|nu
  const open=candidates.filter(i=>{const body=[i,...cells.slice(0,-1)];return Array.from({length:64},(_,j)=>j).some(j=>adjacent(i,j)&&!body.includes(j));});
  const pool=open.length?open:candidates;return pool.length?pool[Math.floor(random()*pool.length)]:null;
 }
-export function freshSerpent():Game{const g=fresh();const cells=[30,29,28,27,26,25];g.serpent={cells,next:nextStep(cells),stun:false,won:false};g.pieces=deal(occupied(g));return g;}
-export function canPlaySerpent(g:Game){return canPlay({...g,board:occupied(g)});}
+export function freshSerpent():Game{const g=fresh();const cells=[30,29,28,27,26,25];g.molts=0;g.serpent={cells,next:nextStep(cells),stun:false,won:false};g.pieces=deal(occupied(g));return g;}
+export function canPlaySerpent(g:Game){return canPlay({...g,board:occupied(g)})||canMoltRescue(g);}
 export function rerollSerpent(g:Game,index:number,random:()=>number=Math.random){const result=rerollPiece({...g,board:occupied(g)},index,random);return result?{...result,board:g.board}:null;}
 function clear(g:Game){
  const filled=occupied(g),rows=filled.flatMap((r,i)=>r.every(Boolean)?[i]:[]),cols=Array.from({length:8},(_,i)=>i).filter(i=>filled.every(r=>r[i]));
@@ -38,7 +38,7 @@ export function placeSerpent(g:Game,index:number,row:number,col:number,random:()
  next.rerolls=canEarnReroll(playerLines)?1:g.rerolls;
  next.bombs=Math.min(1,g.bombs+(next.combo>0&&next.combo%BOMB_COMBO_THRESHOLD===0?1:0));
  if(a.shellCleared||b.shellCleared){
-  const available=(['bombs','rerolls'] as const).filter(key=>next[key]===0);
+  const available=(['bombs','rerolls','molts'] as const).filter(key=>(next[key]??0)===0);
   if(available.length)next[available[available.length===1?0:Math.floor(random()*available.length)]]=1;
  }
  const points=count*10+playerLines*100*Math.max(1,next.combo)+(b.rows.length+b.cols.length)*100;next.score+=points;
@@ -51,13 +51,24 @@ export function bombSerpent(g:Game,row:number,col:number){
  const board=g.board.map(r=>[...r]);let count=0;for(const cell of area){if(board[cell>>3][cell%8])count++;board[cell>>3][cell%8]=0;}
  return {game:{...g,board,bombs:0,goldenBomb:false,score:g.score+count*10,serpent:{...g.serpent,stun:g.serpent.stun||area.includes(g.serpent.cells[0])}},points:count*10,cleared:area,allClear:false,rowsCleared:[] as number[],colsCleared:[] as number[],eaten:null,poop:null};
 }
+export function moltSerpent(g:Game){
+ if(!g.serpent||g.molts!==1)return null;
+ const cleared:number[]=[];
+ const board=g.board.map((r,y)=>r.map((v,x)=>{if(v!==POOP)return v;cleared.push(y*8+x);return 0;}));
+ return cleared.length?{game:{...g,board,molts:0},cleared}:null;
+}
+export function canMoltRescue(g:Game){
+ const result=moltSerpent(g);
+ return !!result&&canPlay({...result.game,bombs:0,rerolls:0,board:occupied(result.game)});
+}
 export function restoreSerpent(value:unknown):Game|null{
  if(!value||typeof value!=='object')return null;const g=value as Game,s=g.serpent;
+ if(g.molts!==undefined&&g.molts!==0&&g.molts!==1)return null;
  if(!s||!Array.isArray(s.cells)||s.cells.length!==6||new Set(s.cells).size!==6||!s.cells.every((c,i)=>Number.isInteger(c)&&c>=0&&c<64&&(!i||adjacent(c,s.cells[i-1])))||typeof s.stun!=='boolean'||![false,'caught','trap'].includes(s.won))return null;
  if(s.next!==null&&(!Number.isInteger(s.next)||s.next<0||s.next>=64||s.cells.includes(s.next)||!adjacent(s.cells[0],s.next)))return null;
  if(!Array.isArray(g.board)||g.board.length!==8||!g.board.every(r=>Array.isArray(r)&&r.length===8&&r.every(v=>Number.isInteger(v)&&v>=0&&v<=POOP)))return null;
  if(!s.won&&s.cells.some(c=>g.board[c>>3][c%8]!==0))return null;
- const valid=restoreSave({...g,board:g.board.map(r=>r.map(v=>v===POOP?1:v))});return valid?{...valid,board:g.board,serpent:{...s,won:false,next:s.won?nextStep(s.cells):s.next}}:null;
+ const valid=restoreSave({...g,board:g.board.map(r=>r.map(v=>v===POOP?1:v))});return valid?{...valid,molts:g.molts??0,board:g.board,serpent:{...s,won:false,next:s.won?nextStep(s.cells):s.next}}:null;
 }
 
 export function serpentRisk(g:Game,index:number,row:number,col:number):'red'|'amber'|null{
@@ -66,6 +77,6 @@ export function serpentRisk(g:Game,index:number,row:number,col:number):'red'|'am
  // Fixed randomness keeps preview from consuming the live game's random sequence.
  const result=placeSerpent(g,index,row,col,()=>0);if(!result)return null;
  const next=result.game;
- if(canPlaySerpent({...next,bombs:0,rerolls:0}))return null;
- return next.bombs>0||next.rerolls>0?'amber':'red';
+ if(canPlaySerpent({...next,bombs:0,rerolls:0,molts:0}))return null;
+ return next.bombs>0||next.rerolls>0||canMoltRescue(next)?'amber':'red';
 }

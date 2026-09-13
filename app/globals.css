@@ -104,3 +104,6 @@
 .skin-neon .shell-art{filter:drop-shadow(0 0 3px #dfd8c64d)}
 .cell.shell-block.preview{background:#eeb36355}
 .cell.shell-block.invalid{background:#e76e7c66}
+
+.header-molt{position:relative}.molt-button.available{color:#e4cbff;background:#bd8dea20;border-color:#cda3ef99}.molt-button:disabled{opacity:.5}.header-molt .reroll-reward i{border-color:#e4cbff}
+@media(max-width:390px){.power-ups:has(.molt-button) .reroll-button,.power-ups:has(.molt-button) .bomb-button{width:32px}.scorebar:has(.molt-button) .score{font-size:21px}.scorebar:has(.molt-button) .record strong{font-size:13px}}

@@ -1,7 +1,7 @@
 export type Shape = number[][];
 export type Piece = { shape: Shape; color: number };
 export type Serpent = {cells:number[];next:number|null;stun:boolean;won:false|'caught'|'trap'};
-export type Game = { serpent?:Serpent; board: number[][]; pieces: (Piece | null)[]; score: number; lines: number; combo: number; bombs: number; goldenBomb: boolean; rerolls: number };
+export type Game = { serpent?:Serpent; molts?:number; board: number[][]; pieces: (Piece | null)[]; score: number; lines: number; combo: number; bombs: number; goldenBomb: boolean; rerolls: number };
 export const SHAPES: Shape[] = [[[1]],[[1,1]],[[1,1,1]],[[1,0],[1,1]],[[1,1,1],[1,1,1],[1,1,1]],[[1,1,1,1]],[[1,1],[1,1]],[[1,0],[1,0],[1,1]],[[0,1],[0,1],[1,1]],[[1,1,1],[0,1,0]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]],[[1,1,1],[1,1,1]],[[1,1,1],[1,0,0],[1,0,0]]];
 export function rotate(s: Shape): Shape { return s[0].map((_,c)=>s.map(row=>row[c]).reverse()); }
 export function isZigzag(shape:Shape):boolean {let s=shape;for(let i=0;i<4;i++,s=rotate(s)){const key=JSON.stringify(s);if(key==='[[1,1,0],[0,1,1]]'||key==='[[0,1,1],[1,1,0]]')return true;}return false;}

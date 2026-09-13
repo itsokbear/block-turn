@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {fresh} from '../lib/game.ts';
-import {freshSerpent,occupied,nextStep,placeSerpent,bombSerpent,rerollSerpent,canPlaySerpent,restoreSerpent,POOP} from '../lib/serpent.ts';
+import {freshSerpent,occupied,nextStep,placeSerpent,bombSerpent,rerollSerpent,canPlaySerpent,restoreSerpent,moltSerpent,POOP} from '../lib/serpent.ts';
 function setup(){const g=freshSerpent();g.serpent!.next=22;g.pieces=[{shape:[[1]],color:1},{shape:[[1]],color:2},null];return g;}
 test('six distinct contiguous segments and visible legal next cell',()=>{const g=setup();assert.equal(g.serpent!.cells.length,6);assert.equal(occupied(g).flat().filter(v=>v===7).length,6);assert.equal(nextStep([30,29,28,27,26,25],()=>0),22);assert.equal(placeSerpent(g,0,3,6),null);});
 test('one predetermined step per figure; no mutation',()=>{const g=setup(),before=JSON.stringify(g);const r=placeSerpent(g,0,0,0,()=>0)!;assert.deepEqual(r.game.serpent!.cells,[22,30,29,28,27,26]);assert.equal(r.poop,null);assert.equal(r.game.board[3][1],0);assert.equal(JSON.stringify(g),before);});
@@ -27,16 +27,16 @@ test('serpent warns red or amber after full turn without modifying state',()=>{c
 test('warning accounts for tail freed by movement and for stun',()=>{const g=riskBoard();g.board=g.board.map((r,y)=>r.map((_,x)=>g.serpent!.cells.includes(y*8+x)?0:(x+y)%2?1:0));g.board[2][6]=0;g.board[2][1]=0;g.board[4][1]=0;g.board[2][0]=1;g.board[2][2]=1;g.board[4][0]=1;g.board[4][2]=1;g.pieces[1]={shape:[[1],[1],[1]],color:2};assert.equal(serpentRisk(g,0,0,0),null);g.serpent!.stun=true;assert.equal(serpentRisk(g,0,0,0),'red');});
 
 function shellLine(){const g=setup();g.board[0]=[0,POOP,POOP,1,1,1,1,1];return g;}
-for(const choice of [0,0.999])test(`shell line fills one random empty bonus (${choice})`,()=>{
+for(const choice of [0,0.5,0.999])test(`shell line fills one random empty bonus (${choice})`,()=>{
  const g=shellLine(),before=JSON.stringify(g);const r=placeSerpent(g,0,0,0,()=>choice)!.game;
- assert.equal(r.bombs,choice===0?1:0);assert.equal(r.rerolls,choice===0?0:1);assert.equal(r.goldenBomb,false);
+ assert.equal(r.bombs,choice===0?1:0);assert.equal(r.rerolls,choice===0.5?1:0);assert.equal(r.molts,choice===0.999?1:0);assert.equal(r.goldenBomb,false);
  assert.equal(r.score,110);assert.equal(r.combo,1);assert.equal(JSON.stringify(g),before);
 });
-for(const bombs of [0,1])for(const rerolls of [0,1])test(`shell reward respects occupied slots (${bombs}, ${rerolls})`,()=>{
- const g=shellLine();g.bombs=bombs;g.rerolls=rerolls;g.goldenBomb=bombs===1;
+for(const bombs of [0,1])for(const rerolls of [0,1])for(const molts of [0,1])test(`shell reward respects occupied slots (${bombs}, ${rerolls}, ${molts})`,()=>{
+ const g=shellLine();g.bombs=bombs;g.rerolls=rerolls;g.molts=molts;g.goldenBomb=bombs===1;
  const r=placeSerpent(g,0,0,0,()=>0.999)!.game;
- assert.equal(r.bombs+r.rerolls,Math.min(2,bombs+rerolls+1));
- assert.ok(r.bombs>=bombs&&r.rerolls>=rerolls);assert.equal(r.goldenBomb,g.goldenBomb);
+ assert.equal(r.bombs+r.rerolls+r.molts!,Math.min(3,bombs+rerolls+molts+1));
+ assert.ok(r.bombs>=bombs&&r.rerolls>=rerolls&&r.molts!>=molts);assert.equal(r.goldenBomb,g.goldenBomb);
 });
 test('shell reward fills reroll after earning combo bomb',()=>{
  const g=shellLine();g.combo=3;const r=placeSerpent(g,0,0,0,()=>0)!.game;
@@ -44,7 +44,7 @@ test('shell reward fills reroll after earning combo bomb',()=>{
 });
 test('shell reward fills bomb after earning three-line reroll',()=>{
  const g=shellLine();g.board[1]=[0,1,1,1,1,1,1,1];g.board[2]=[0,1,1,1,1,1,1,1];g.pieces[0]!.shape=[[1],[1],[1]];
- const r=placeSerpent(g,0,0,0,()=>0.999)!.game;
+ const r=placeSerpent(g,0,0,0,()=>0)!.game;
  assert.equal(r.lines,3);assert.equal(r.bombs,1);assert.equal(r.rerolls,1);
 });
 test('movement shell clear earns reward without advancing combo',()=>{
@@ -62,4 +62,28 @@ test('ordinary line, eating shell and bombing shell do not earn shell rewards',(
  for(const r of [placeSerpent(ordinary,0,0,0)!,placeSerpent(eating,0,0,0)!,bombSerpent(bombing,0,0)!]){
   assert.equal(r.game.bombs,0);assert.equal(r.game.rerolls,0);
  }
+});
+
+test('molt removes only shells without a turn, points, rewards or mutation',()=>{
+ const g=setup();g.molts=1;g.combo=3;g.serpent!.stun=true;g.board[0][0]=POOP;g.board[7][7]=POOP;g.board[0][1]=2;
+ const before=JSON.stringify(g),r=moltSerpent(g)!;
+ assert.deepEqual(r.cleared,[0,63]);assert.equal(r.game.board[0][1],2);assert.equal(r.game.board.flat().includes(POOP),false);
+ assert.deepEqual({...r.game,board:g.board,molts:1},g);assert.equal(r.game.molts,0);assert.equal(JSON.stringify(g),before);
+ assert.equal(moltSerpent(r.game),null);assert.equal(moltSerpent({...setup(),molts:1}),null);assert.equal(moltSerpent({...fresh(),molts:1}),null);
+});
+test('molt save migrates missing slot and validates stored bonus',()=>{
+ const g=setup();delete g.molts;assert.equal(restoreSerpent(g)!.molts,0);
+ g.molts=1;assert.deepEqual(restoreSerpent(g),g);
+ for(const molts of [-1,2,0.5,'1',null])assert.equal(restoreSerpent({...g,molts}),null);
+});
+test('molt prevents game over only when it creates a legal placement',()=>{
+ const g=setup();g.molts=1;g.board=g.board.map((r,y)=>r.map((_,x)=>g.serpent!.cells.includes(y*8+x)?0:1));
+ assert.equal(canPlaySerpent(g),false);g.board[0][0]=POOP;assert.equal(canPlaySerpent(g),true);
+ g.pieces=[{shape:[[1,1]],color:1},null,null];assert.equal(canPlaySerpent(g),false);
+ g.board[0][1]=POOP;assert.equal(canPlaySerpent(g),true);
+});
+test('risk recognizes useful molt but not an ineffective one',()=>{
+ const g=riskBoard();g.molts=1;assert.equal(serpentRisk(g,0,0,0),'red');
+ for(let y=5;y<8;y++)for(let x=5;x<8;x++)g.board[y][x]=POOP;
+ assert.equal(serpentRisk(g,0,0,0),'amber');
 });
