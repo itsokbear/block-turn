@@ -54,3 +54,13 @@ export function restoreSerpent(value:unknown):Game|null{
  if(!s.won&&s.cells.some(c=>g.board[c>>3][c%8]!==0))return null;
  const valid=restoreSave({...g,board:g.board.map(r=>r.map(v=>v===POOP?1:v))});return valid?{...valid,board:g.board,serpent:{...s,won:false,next:s.won?nextStep(s.cells):s.next}}:null;
 }
+
+export function serpentRisk(g:Game,index:number,row:number,col:number):'red'|'amber'|null{
+ if(!g.serpent||g.pieces.filter(Boolean).length<=1)return null;
+ // Resolve only the already announced step. Future intent cannot affect immediate fit.
+ // Fixed randomness keeps preview from consuming the live game's random sequence.
+ const result=placeSerpent(g,index,row,col,()=>0);if(!result)return null;
+ const next=result.game;
+ if(canPlaySerpent({...next,bombs:0,rerolls:0}))return null;
+ return next.bombs>0||next.rerolls>0?'amber':'red';
+}
