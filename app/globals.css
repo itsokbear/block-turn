@@ -66,3 +66,25 @@
 .board{position:relative;isolation:isolate}.game-over{z-index:10}
 /* Stable segment identities allow the browser to interpolate each body step. */
 .serpent-layer{position:absolute;inset:11px;pointer-events:none;z-index:2}.serpent-segment{position:absolute;width:calc((100% - 28px)/8);height:calc((100% - 28px)/8);background:#719b55;border:1px solid #c9f89766;border-radius:5px;box-shadow:0 0 0 2px #719b5560,inset 0 0 8px #c4fa8822;transition:left .26s ease-in-out,top .26s ease-in-out;display:flex;align-items:center;justify-content:center}.serpent-segment-head{background:#c6f68c;color:#26361a;border-radius:8px;font-size:28px;line-height:1;box-shadow:0 0 14px #b9f37b60}.serpent-segment-stunned{filter:saturate(.3);outline:2px dotted #f8d285;outline-offset:-4px}.serpent-eating{animation:gulp .3s .2s ease both}.has-serpent .cell.snake-cell,.skin-neon .has-serpent .cell.snake-cell{background:#242c3e;border:0;box-shadow:none;z-index:auto}.skin-neon .has-serpent .cell.snake-cell{background:#1b2033}.has-serpent .snake-cell>span,.has-serpent .snake-cell:before,.has-serpent .snake-cell:after{visibility:hidden}.has-serpent .snake-cell.snake-stunned{outline:none;filter:none}.board-ending .serpent-layer{animation:snake-end .7s ease-in both}@keyframes snake-end{to{opacity:0;transform:translateY(35px) scale(.9)}}@media(max-width:720px){.serpent-layer{inset:9px}}@media(prefers-reduced-motion:reduce){.serpent-segment{transition:none}.serpent-eating{animation:none}}
+
+/* Bruni is an optional Serpent character, independent of Classic / Neon. */
+.serpent-face{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+.bruni-head-art,.bruni-tail-art{display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
+.serpent-bruni .serpent-segment{background:linear-gradient(145deg,#d5c1fb,#b8a0eb 48%,#a38bd7);border-color:#deceff80;box-shadow:0 0 0 2px #b8a0eb60,inset 0 2px 1px #f2e7ff60,inset -2px -3px 2px #7d60b530}
+.serpent-bruni .serpent-segment:not(.serpent-segment-head):not(.serpent-segment-tail):after{content:'';position:absolute;inset:0;pointer-events:none;background:#eadbff26;clip-path:polygon(0 0,72% 0,30% 44%,0 72%)}
+.serpent-bruni .serpent-segment-head,.serpent-bruni .serpent-segment-tail{background:none;border:0;box-shadow:none;border-radius:0}
+.serpent-bruni .bruni-head-art{filter:drop-shadow(0 2px 1px #140d2840)}
+.serpent-bruni .serpent-segment-stunned{outline:none;filter:saturate(.25) drop-shadow(0 0 3px #f8d285)}
+.skin-neon .serpent-bruni .serpent-segment:not(.serpent-segment-head):not(.serpent-segment-tail){box-shadow:0 0 0 2px #b8a0eb50,0 0 9px #b69af650,inset 0 2px #eadbff70}
+.skin-neon .serpent-bruni .bruni-head-art,.skin-neon .serpent-bruni .bruni-tail-art{filter:drop-shadow(0 0 3px #c6a6ff70)}
+.character-bruni .cell.snake-next:before{border-color:#c9a5fa;background:#ba8df51c}
+.character-heading{font-size:14px;font-weight:500;margin:22px 0 12px;color:#d6d0e4}
+.character-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.character-option{padding:20px 14px 14px;text-align:center}
+.character-option>svg{width:15px;right:9px;top:9px}
+.character-sample{display:flex;align-items:center;justify-content:center;width:30px;height:30px;margin:24px auto 10px;color:#26361a;font-size:28px;line-height:1}
+.character-sample.snake{background:#c6f68c;border-radius:6px}
+.character-hint{display:block;margin-top:10px;color:#9da7b9;font-size:11px;line-height:1.5}
+.bruni-next-direction{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#e1c6ff;font-size:26px;line-height:1;text-shadow:0 1px 4px #130b26;pointer-events:none;z-index:2}
+/* Long ears may overlap board cells, but never the score or power-up controls. */
+.serpent-bruni{clip-path:inset(-9px round 8px)}
