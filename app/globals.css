@@ -88,3 +88,11 @@
 .bruni-next-direction{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#e1c6ff;font-size:26px;line-height:1;text-shadow:0 1px 4px #130b26;pointer-events:none;z-index:2}
 /* Long ears may overlap board cells, but never the score or power-up controls. */
 .serpent-bruni{clip-path:inset(-9px round 8px)}
+
+/* Continuous spine sits behind the moving segments, head and tapered tail. */
+.serpent-spine{position:absolute;inset:0;overflow:visible;pointer-events:none;z-index:0}
+.serpent-spine polyline{fill:none;stroke:#86b260;stroke-linecap:round;stroke-linejoin:round}
+.serpent-bruni .serpent-spine polyline{stroke:#c4adf2}
+/* Reserve lavender for Bruni; also recolor the tray, drag ghost and previews. */
+.bruni-active .color-1{--tile:#b6ca63}
+.skin-neon.bruni-active .color-1{--tile:#c4ff00}
