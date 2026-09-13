@@ -1,7 +1,8 @@
+name: block-turn
 services:
   block-turn:
     build: .
-    image: local/block-turn:1.1.0-hard
+    image: local/block-turn:latest
     ports:
       - "8088:80"
     restart: unless-stopped
