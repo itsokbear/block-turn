@@ -39,7 +39,7 @@ export function place(g:Game,index:number,row:number,col:number): {game:Game; cl
 export function validSave(v:unknown):v is Game {const g=v as Game;return !!g&&Array.isArray(g.board)&&g.board.length===8&&g.board.every(r=>Array.isArray(r)&&r.length===8&&r.every(n=>Number.isInteger(n)&&n>=0&&n<=5))&&Array.isArray(g.pieces)&&g.pieces.length===3&&g.pieces.some(Boolean)&&g.pieces.every(p=>p===null||(Number.isInteger(p.color)&&p.color>=1&&p.color<=5&&Array.isArray(p.shape)&&p.shape.length>0&&p.shape.length<=4&&p.shape.every(r=>Array.isArray(r)&&r.length===p.shape[0].length&&r.length>0&&r.length<=4&&r.every(v=>v===0||v===1))&&p.shape.some(r=>r.some(Boolean))))&&(g.rerolls===0||g.rerolls===1)&&typeof g.goldenBomb==='boolean'&&(!g.goldenBomb||g.bombs===1)&&(g.bombs===0||g.bombs===1)&&[g.score,g.lines,g.combo,g.bombs].every(n=>Number.isSafeInteger(n)&&n>=0);}
 
 // The clicked cell is the blast centre; at an edge shift the full 3×3 area inward.
-export function bombArea(row:number,col:number,size:3|5=3):number[] {
+export function bombArea(row:number,col:number,size:1|2|3|5=3):number[] {
  if(!Number.isInteger(row)||!Number.isInteger(col)||row<0||row>7||col<0||col>7)return [];
  const radius=Math.floor(size/2);
  const top=Math.max(0,Math.min(8-size,row-radius)),left=Math.max(0,Math.min(8-size,col-radius));

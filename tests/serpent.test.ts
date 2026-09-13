@@ -64,9 +64,9 @@ test('ordinary line, eating shell and bombing shell do not earn shell rewards',(
  }
 });
 
-test('molt removes only shells without a turn, points, rewards or mutation',()=>{
+test('1x1 molt removes only shells without a turn, points, rewards or mutation',()=>{
  const g=setup();g.molts=1;g.combo=3;g.serpent!.stun=true;g.board[0][0]=POOP;g.board[7][7]=POOP;g.board[0][1]=2;
- const before=JSON.stringify(g),r=moltSerpent(g)!;
+ const before=JSON.stringify(g),r=moltSerpent(g,()=>0)!;
  assert.deepEqual(r.cleared,[0,63]);assert.equal(r.game.board[0][1],2);assert.equal(r.game.board.flat().includes(POOP),false);
  assert.deepEqual({...r.game,board:g.board,molts:1},g);assert.equal(r.game.molts,0);assert.equal(JSON.stringify(g),before);
  assert.equal(moltSerpent(r.game),null);assert.equal(moltSerpent({...setup(),molts:1}),null);assert.equal(moltSerpent({...fresh(),molts:1}),null);
@@ -79,11 +79,54 @@ test('molt save migrates missing slot and validates stored bonus',()=>{
 test('molt prevents game over only when it creates a legal placement',()=>{
  const g=setup();g.molts=1;g.board=g.board.map((r,y)=>r.map((_,x)=>g.serpent!.cells.includes(y*8+x)?0:1));
  assert.equal(canPlaySerpent(g),false);g.board[0][0]=POOP;assert.equal(canPlaySerpent(g),true);
- g.pieces=[{shape:[[1,1]],color:1},null,null];assert.equal(canPlaySerpent(g),false);
+ g.pieces=[{shape:[[1,1]],color:1},null,null];assert.equal(canPlaySerpent(g),true);
  g.board[0][1]=POOP;assert.equal(canPlaySerpent(g),true);
 });
 test('risk recognizes useful molt but not an ineffective one',()=>{
  const g=riskBoard();g.molts=1;assert.equal(serpentRisk(g,0,0,0),'red');
  for(let y=5;y<8;y++)for(let x=5;x<8;x++)g.board[y][x]=POOP;
  assert.equal(serpentRisk(g,0,0,0),'amber');
+});
+
+
+test('trapped corner from screenshot recovers on restore and placement',()=>{
+ const g=setup();g.serpent={cells:[63,55,47,46,54,62],next:null,stun:false,won:false};
+ const before=JSON.stringify(g),restored=restoreSerpent(g)!;
+ assert.deepEqual(restored.serpent!.cells,[62,54,46,47,55,63]);
+ assert.equal(restored.serpent!.next,61);
+ assert.equal(placeSerpent(g,0,0,0,()=>0)!.game.serpent!.cells[0],61);
+ assert.equal(JSON.stringify(g),before);
+});
+test('route avoids the move that leads into the screenshot corner',()=>{
+ const cells=[47,46,54,62,61,60];
+ for(const random of [0,0.5,0.999])assert.notEqual(nextStep(cells,()=>random),55);
+});
+test('random walks always retain an escape route',()=>{
+ let seed=123456789;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;};
+ let cells=[30,29,28,27,26,25];
+ for(let turn=0;turn<10000;turn++){
+  const next=nextStep(cells,random);assert.notEqual(next,null,`Trapped: ${cells}`);
+  assert.ok(!cells.includes(next!));cells=[next!,...cells.slice(0,-1)];
+ }
+});
+for(const [roll,size] of [[0,1],[0.5,2],[0.999,3]])test(`molt rolls ${size}x${size} and preserves size at corners`,()=>{
+ for(const cell of [0,7,63,56,36]){
+  const g=setup();g.molts=1;g.board=g.board.map((r,y)=>r.map((_,x)=>g.serpent!.cells.includes(y*8+x)?0:2));g.board[cell>>3][cell%8]=POOP;
+  const before=JSON.stringify(g),r=moltSerpent(g,()=>roll)!;
+  assert.equal(r.cleared.length,size*size);assert.ok(r.cleared.includes(cell));
+  assert.ok(r.cleared.every(c=>r.game.board[c>>3][c%8]===0));
+  assert.deepEqual({...r.game,board:g.board,molts:1},g);assert.equal(JSON.stringify(g),before);
+ }
+});
+test('overlapping shells each roll once even when an earlier blast covers them',()=>{
+ const g=setup();g.molts=1;g.board[0][0]=POOP;g.board[0][1]=POOP;g.board[0][2]=POOP;
+ const rolls=[0.999,0.5,0];let calls=0;
+ const r=moltSerpent(g,()=>rolls[calls++])!;
+ assert.equal(calls,3);assert.equal(r.cleared.length,9);assert.equal(r.game.board.flat().includes(POOP),false);
+});
+test('rescue preview consumes no randomness and allows a chance to escape',()=>{
+ const g=setup();g.molts=1;g.board=g.board.map((r,y)=>r.map((_,x)=>g.serpent!.cells.includes(y*8+x)?0:1));g.board[0][0]=POOP;
+ g.pieces=[{shape:[[1,1]],color:1},null,null];
+ const original=Math.random;Math.random=()=>{throw new Error('Preview consumed randomness');};
+ try{assert.equal(canPlaySerpent(g),true);g.pieces[0]!.shape=Array.from({length:4},()=>[1,1,1,1]);assert.equal(canPlaySerpent(g),false);}finally{Math.random=original;}
 });
